@@ -120,13 +120,13 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
                 className="hover:bg-white/20 p-1.5 rounded transition"
                 title="Clear chat"
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={16} className="hover:-rotate-90 transition-transform duration-200" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 className="hover:bg-white/20 p-1.5 rounded transition"
               >
-                <X size={16} className="rotate-90" />
+                <X size={16} className="hover:-rotate-90 transition-transform duration-200" />
               </button>
             </div>
           </div>

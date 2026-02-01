@@ -145,16 +145,42 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   </div>
 
                   <div className="relative">
-                    <Shield size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="staff">Staf</option>
-                      <option value="manager">Manajer</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                    {/* Icon */}
+                    <Shield
+                      size={18}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+
+                    {/* Role Selector */}
+                    <div className="flex gap-2 w-full pl-12 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                      {/* Staff */}
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role: "staff" })}
+                        className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all
+                          ${
+                            formData.role === "staff"
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100"
+                          }`}
+                      >
+                        Staf
+                      </button>
+
+                      {/* Manager */}
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role: "manager" })}
+                        className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all
+                          ${
+                            formData.role === "manager"
+                              ? "bg-blue-500 text-white shadow-sm"
+                              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100"
+                          }`}
+                      >
+                        Manajer
+                      </button>
+                    </div>
                   </div>
 
                   <div className="relative">
