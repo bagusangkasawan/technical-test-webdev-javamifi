@@ -1,5 +1,5 @@
 // API Service - Fungsi untuk komunikasi dengan backend REST API
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('erp_token');
