@@ -9,8 +9,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { chatApi } from '../../services/api';
-import { authApi } from '../../services/api';
+import { chatApi, authApi } from '../../services/api';
 
 interface ChatbotProps {
   token: string;
@@ -134,7 +133,23 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
-        <div className="bg-white w-[calc(100vw-32px)] sm:w-96 h-[70vh] sm:h-[550px] max-h-[600px] rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 duration-300 mb-4">
+        <div
+          className="
+            fixed inset-0 sm:static
+            bg-white
+            w-full sm:w-96
+            h-full sm:h-[550px]
+            max-h-full sm:max-h-[600px]
+            rounded-none sm:rounded-2xl
+            shadow-none sm:shadow-2xl
+            border-0 sm:border border-gray-200
+            flex flex-col
+            overflow-hidden
+            animate-in slide-in-from-bottom-10
+            duration-300
+            z-50
+          "
+        >
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 flex justify-between items-center text-white shadow-md">
             <div className="flex items-center gap-3">

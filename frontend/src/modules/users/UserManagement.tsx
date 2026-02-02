@@ -2,19 +2,24 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Edit2, Trash2, Shield, Search } from 'lucide-react';
 import { usersApi, authApi } from '../../services/api';
-import { Button, Input, Select, Modal, Table, Badge, Card } from '../../components/ui';
+import { Button, Input, Select, Modal, Table, Badge, Card, ConfirmDialog } from '../../components/ui';
 
 interface UserManagementProps {
   token: string;
   currentUser: { _id: string; role: string };
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
+export const UserManagement: React.FC<UserManagementProps> = ({ currentUser, showToast }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; userId: string | null }>({
+    isOpen: false,
+    userId: null,
+  });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -40,19 +45,21 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       if (editingUser) {
         await usersApi.update(editingUser._id, formData);
+        showToast('Pengguna berhasil diperbarui', 'success');
       } else {
         await authApi.register(formData);
+        showToast('Pengguna berhasil ditambahkan', 'success');
       }
       setIsModalOpen(false);
       resetForm();
       fetchUsers();
     } catch (error: any) {
-      alert(error.message || 'Operasi gagal');
+      showToast(error.message || 'Operasi gagal', 'error');
     }
   };
 
@@ -70,12 +77,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus pengguna ini?')) return;
+    setDeleteConfirm({ isOpen: true, userId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.userId) return;
     try {
-      await usersApi.delete(id);
+      await usersApi.delete(deleteConfirm.userId);
+      showToast('Pengguna berhasil dihapus', 'success');
       fetchUsers();
     } catch (error: any) {
-      alert(error.message || 'Gagal menghapus pengguna');
+      showToast(error.message || 'Gagal menghapus pengguna', 'error');
+    } finally {
+      setDeleteConfirm({ isOpen: false, userId: null });
     }
   };
 
@@ -317,6 +331,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
           </div>
         </form>
       </Modal>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, userId: null })}
+        onConfirm={confirmDelete}
+        title="Hapus Pengguna"
+        message="Apakah Anda yakin ingin menghapus pengguna ini? Tindakan ini tidak dapat dibatalkan."
+        type="danger"
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 };

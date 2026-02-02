@@ -19,14 +19,17 @@ import {
   Badge,
   Card,
   StatCard,
+  ConfirmDialog,
+  InputDialog,
 } from '../../components/ui';
 
 interface InventoryProps {
   token: string;
   userRole: string;
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ userRole }) => {
+export const Inventory: React.FC<InventoryProps> = ({ userRole, showToast }) => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [stats, setStats] = useState({ totalProducts: 0, lowStockProducts: 0, totalValue: 0 });
@@ -36,6 +39,15 @@ export const Inventory: React.FC<InventoryProps> = ({ userRole }) => {
   const [lowStockFilter, setLowStockFilter] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; productId: string | null }>({
+    isOpen: false,
+    productId: null,
+  });
+  const [stockDialog, setStockDialog] = useState<{ isOpen: boolean; productId: string | null; type: 'add' | 'subtract' }>({
+    isOpen: false,
+    productId: null,
+    type: 'add',
+  });
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -74,19 +86,21 @@ export const Inventory: React.FC<InventoryProps> = ({ userRole }) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       if (editingProduct) {
         await inventoryApi.update(editingProduct._id, formData);
+        showToast('Produk berhasil diperbarui', 'success');
       } else {
         await inventoryApi.create(formData);
+        showToast('Produk berhasil ditambahkan', 'success');
       }
       setIsModalOpen(false);
       resetForm();
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Operasi gagal');
+      showToast(error.message || 'Operasi gagal', 'error');
     }
   };
 
@@ -108,24 +122,36 @@ export const Inventory: React.FC<InventoryProps> = ({ userRole }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
+    setDeleteConfirm({ isOpen: true, productId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.productId) return;
     try {
-      await inventoryApi.delete(id);
+      await inventoryApi.delete(deleteConfirm.productId);
+      showToast('Produk berhasil dihapus', 'success');
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal menghapus produk');
+      showToast(error.message || 'Gagal menghapus produk', 'error');
+    } finally {
+      setDeleteConfirm({ isOpen: false, productId: null });
     }
   };
 
-  const handleStockUpdate = async (id: string, type: 'add' | 'subtract') => {
-    const promptText = type === 'add' ? 'Masukkan jumlah untuk ditambahkan:' : 'Masukkan jumlah untuk dikurangi:';
-    const quantity = parseInt(prompt(promptText) || '0');
-    if (quantity <= 0) return;
+  const handleStockUpdate = (id: string, type: 'add' | 'subtract') => {
+    setStockDialog({ isOpen: true, productId: id, type });
+  };
+
+  const confirmStockUpdate = async (quantity: number) => {
+    if (!stockDialog.productId || quantity <= 0) return;
     try {
-      await inventoryApi.updateStock(id, quantity, type);
+      await inventoryApi.updateStock(stockDialog.productId, quantity, stockDialog.type);
+      showToast(`Stok berhasil ${stockDialog.type === 'add' ? 'ditambahkan' : 'dikurangi'}`, 'success');
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal memperbarui stok');
+      showToast(error.message || 'Gagal memperbarui stok', 'error');
+    } finally {
+      setStockDialog({ isOpen: false, productId: null, type: 'add' });
     }
   };
 
@@ -445,6 +471,32 @@ export const Inventory: React.FC<InventoryProps> = ({ userRole }) => {
           </div>
         </form>
       </Modal>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, productId: null })}
+        onConfirm={confirmDelete}
+        title="Hapus Produk"
+        message="Apakah Anda yakin ingin menghapus produk ini? Data produk yang dihapus tidak dapat dikembalikan."
+        type="danger"
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
+
+      {/* Stock Update Input Dialog */}
+      <InputDialog
+        isOpen={stockDialog.isOpen}
+        onClose={() => setStockDialog({ isOpen: false, productId: null, type: 'add' })}
+        onSubmit={confirmStockUpdate}
+        title={stockDialog.type === 'add' ? 'Tambah Stok' : 'Kurangi Stok'}
+        message={stockDialog.type === 'add' ? 'Masukkan jumlah stok yang akan ditambahkan:' : 'Masukkan jumlah stok yang akan dikurangi:'}
+        inputLabel="Jumlah"
+        inputPlaceholder="Masukkan jumlah..."
+        min={1}
+        submitText={stockDialog.type === 'add' ? 'Tambah' : 'Kurangi'}
+        cancelText="Batal"
+      />
     </div>
   );
 };

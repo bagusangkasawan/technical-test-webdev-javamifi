@@ -21,14 +21,16 @@ import {
   StatCard,
   StatusBadge,
   PriorityBadge,
+  ConfirmDialog,
 } from '../../components/ui';
 
 interface ProjectsProps {
   token: string;
   userRole: string;
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export const Projects: React.FC<ProjectsProps> = ({ userRole }) => {
+export const Projects: React.FC<ProjectsProps> = ({ userRole, showToast }) => {
   const [projects, setProjects] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalProjects: 0,
@@ -43,6 +45,15 @@ export const Projects: React.FC<ProjectsProps> = ({ userRole }) => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
   const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [deleteProjectConfirm, setDeleteProjectConfirm] = useState<{ isOpen: boolean; projectId: string | null }>({
+    isOpen: false,
+    projectId: null,
+  });
+  const [deleteTaskConfirm, setDeleteTaskConfirm] = useState<{ isOpen: boolean; projectId: string | null; taskId: string | null }>({
+    isOpen: false,
+    projectId: null,
+    taskId: null,
+  });
   const [projectForm, setProjectForm] = useState({
     title: '',
     description: '',
@@ -79,32 +90,35 @@ export const Projects: React.FC<ProjectsProps> = ({ userRole }) => {
     }
   };
 
-  const handleProjectSubmit = async (e: React.FormEvent) => {
+  const handleProjectSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       if (editingProject) {
         await projectsApi.update(editingProject._id, projectForm);
+        showToast('Proyek berhasil diperbarui', 'success');
       } else {
         await projectsApi.create(projectForm);
+        showToast('Proyek berhasil ditambahkan', 'success');
       }
       setIsProjectModalOpen(false);
       resetProjectForm();
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Operasi gagal');
+      showToast(error.message || 'Operasi gagal', 'error');
     }
   };
 
-  const handleTaskSubmit = async (e: React.FormEvent) => {
+  const handleTaskSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
     try {
       await projectsApi.addTask(selectedProject._id, taskForm);
+      showToast('Tugas berhasil ditambahkan', 'success');
       setIsTaskModalOpen(false);
       resetTaskForm();
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal menambah tugas');
+      showToast(error.message || 'Gagal menambah tugas', 'error');
     }
   };
 
@@ -113,27 +127,41 @@ export const Projects: React.FC<ProjectsProps> = ({ userRole }) => {
       await projectsApi.toggleTask(projectId, taskId);
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal mengubah status tugas');
+      showToast(error.message || 'Gagal mengubah status tugas', 'error');
     }
   };
 
   const handleDeleteTask = async (projectId: string, taskId: string) => {
-    if (!confirm('Hapus tugas ini?')) return;
+    setDeleteTaskConfirm({ isOpen: true, projectId, taskId });
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!deleteTaskConfirm.projectId || !deleteTaskConfirm.taskId) return;
     try {
-      await projectsApi.deleteTask(projectId, taskId);
+      await projectsApi.deleteTask(deleteTaskConfirm.projectId, deleteTaskConfirm.taskId);
+      showToast('Tugas berhasil dihapus', 'success');
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal menghapus tugas');
+      showToast(error.message || 'Gagal menghapus tugas', 'error');
+    } finally {
+      setDeleteTaskConfirm({ isOpen: false, projectId: null, taskId: null });
     }
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus proyek ini?')) return;
+    setDeleteProjectConfirm({ isOpen: true, projectId: id });
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!deleteProjectConfirm.projectId) return;
     try {
-      await projectsApi.delete(id);
+      await projectsApi.delete(deleteProjectConfirm.projectId);
+      showToast('Proyek berhasil dihapus', 'success');
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal menghapus proyek');
+      showToast(error.message || 'Gagal menghapus proyek', 'error');
+    } finally {
+      setDeleteProjectConfirm({ isOpen: false, projectId: null });
     }
   };
 
@@ -593,6 +621,30 @@ export const Projects: React.FC<ProjectsProps> = ({ userRole }) => {
           </div>
         </form>
       </Modal>
+
+      {/* Confirm Delete Project Dialog */}
+      <ConfirmDialog
+        isOpen={deleteProjectConfirm.isOpen}
+        onClose={() => setDeleteProjectConfirm({ isOpen: false, projectId: null })}
+        onConfirm={confirmDeleteProject}
+        title="Hapus Proyek"
+        message="Apakah Anda yakin ingin menghapus proyek ini? Semua tugas dalam proyek juga akan dihapus dan tidak dapat dikembalikan."
+        type="danger"
+        confirmText="Hapus Proyek"
+        cancelText="Batal"
+      />
+
+      {/* Confirm Delete Task Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTaskConfirm.isOpen}
+        onClose={() => setDeleteTaskConfirm({ isOpen: false, projectId: null, taskId: null })}
+        onConfirm={confirmDeleteTask}
+        title="Hapus Tugas"
+        message="Apakah Anda yakin ingin menghapus tugas ini?"
+        type="warning"
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 };

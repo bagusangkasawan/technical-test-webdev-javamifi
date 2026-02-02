@@ -17,14 +17,16 @@ import {
   Card,
   StatCard,
   Badge,
+  ConfirmDialog,
 } from '../../components/ui';
 
 interface FinanceProps {
   token: string;
   userRole: string;
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export const Finance: React.FC<FinanceProps> = ({ userRole }) => {
+export const Finance: React.FC<FinanceProps> = ({ userRole, showToast }) => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [summary, setSummary] = useState({
     totalIncome: 0,
@@ -36,6 +38,10 @@ export const Finance: React.FC<FinanceProps> = ({ userRole }) => {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; txId: string | null }>({
+    isOpen: false,
+    txId: null,
+  });
   const [formData, setFormData] = useState({
     type: 'income' as 'income' | 'expense',
     category: '',
@@ -70,25 +76,33 @@ export const Finance: React.FC<FinanceProps> = ({ userRole }) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       await financeApi.create(formData);
+      showToast('Transaksi berhasil dicatat', 'success');
       setIsModalOpen(false);
       resetForm();
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Operasi gagal');
+      showToast(error.message || 'Operasi gagal', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
+    setDeleteConfirm({ isOpen: true, txId: id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.txId) return;
     try {
-      await financeApi.delete(id);
+      await financeApi.delete(deleteConfirm.txId);
+      showToast('Transaksi berhasil dihapus', 'success');
       fetchData();
     } catch (error: any) {
-      alert(error.message || 'Gagal menghapus transaksi');
+      showToast(error.message || 'Gagal menghapus transaksi', 'error');
+    } finally {
+      setDeleteConfirm({ isOpen: false, txId: null });
     }
   };
 
@@ -499,6 +513,18 @@ export const Finance: React.FC<FinanceProps> = ({ userRole }) => {
           </div>
         </form>
       </Modal>
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, txId: null })}
+        onConfirm={confirmDelete}
+        title="Hapus Transaksi"
+        message="Apakah Anda yakin ingin menghapus transaksi ini? Data keuangan yang dihapus tidak dapat dikembalikan."
+        type="danger"
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 };

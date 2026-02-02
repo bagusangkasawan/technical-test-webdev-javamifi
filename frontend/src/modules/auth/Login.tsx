@@ -1,6 +1,6 @@
 // Halaman Login - Autentikasi pengguna dengan form login dan register
 import React, { useState } from 'react';
-import { LayoutDashboard, Mail, Lock, User, Building2, Shield, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Mail, Lock, User, Building2, Shield, ArrowRight, CheckCircle } from 'lucide-react';
 import { authApi } from '../../services/api';
 
 interface LoginProps {
@@ -18,20 +18,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const year = new Date().getFullYear();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       if (isRegister) {
         await authApi.register(formData);
         setIsRegister(false);
         setError('');
-        alert('Pendaftaran berhasil! Silakan masuk.');
+        setSuccessMessage('Pendaftaran berhasil! Silakan masuk dengan akun Anda.');
+        setFormData({ ...formData, password: '' });
       } else {
         const data = await authApi.login(formData.email, formData.password);
         onLogin(data.token, data.user);
@@ -121,6 +124,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   : 'Masuk untuk mengakses dashboard Anda'}
               </p>
             </div>
+
+            {successMessage && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm flex items-center gap-2">
+                <CheckCircle size={18} className="text-green-500" />
+                {successMessage}
+              </div>
+            )}
 
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">

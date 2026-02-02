@@ -48,13 +48,13 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard token={token} userRole={user.role} onNavigate={(page) => setActiveModule(page as ActiveModule)} />;
       case 'inventory':
-        return <Inventory token={token} userRole={user.role} />;
+        return <Inventory token={token} userRole={user.role} showToast={addToast} />;
       case 'finance':
-        return <Finance token={token} userRole={user.role} />;
+        return <Finance token={token} userRole={user.role} showToast={addToast} />;
       case 'projects':
-        return <Projects token={token} userRole={user.role} />;
+        return <Projects token={token} userRole={user.role} showToast={addToast} />;
       case 'users':
-        return <UserManagement token={token} currentUser={user} />;
+        return <UserManagement token={token} currentUser={user} showToast={addToast} />;
       default:
         return <Dashboard token={token} userRole={user.role} />;
     }
