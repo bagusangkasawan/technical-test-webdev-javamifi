@@ -100,7 +100,7 @@ Aplikasi ini mengimplementasikan kontrol akses berbasis role sesuai standar indu
 1. **Clone repository**
 ```bash
 git clone https://github.com/bagusangkasawan/technical-test-webdev-javamifi.git
-cd "https://github.com/bagusangkasawan/technical-test-webdev-javamifi"
+cd "technical-test-webdev-javamifi"
 ```
 
 2. **Setup Backend**
@@ -198,22 +198,6 @@ pnpm dev
 - `POST /api/chat` - Kirim pesan ke AI
 - `GET /api/chat/sessions` - Ambil sesi chat
 - `GET /api/chat/history/:sessionId` - Ambil riwayat chat
-
-## 👤 Kredensial Demo
-
-```
-Admin:
-Email: admin@erpmate.com
-Password: admin123
-
-Manager:
-Email: manager@erpmate.com
-Password: manager123
-
-Staff:
-Email: staff@erpmate.com
-Password: staff123
-```
 
 ## 📝 Lisensi
 

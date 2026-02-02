@@ -8,7 +8,9 @@ import {
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { chatApi } from '../../services/api';
+import { authApi } from '../../services/api';
 
 interface ChatbotProps {
   token: string;
@@ -19,6 +21,36 @@ interface Message {
   content: string;
 }
 
+const roleBasedPrompts: Record<string, string[]> = {
+  admin: [
+    'Tampilkan ringkasan keuangan',
+    'Produk mana yang stoknya rendah?',
+    'Berapa total pemasukan dan pengeluaran?',
+    'Proyek apa saja yang sedang aktif?',
+    'Produk dengan harga tertinggi',
+    'Kategori produk apa saja yang ada?',
+  ],
+  manager: [
+    'Tampilkan progres semua proyek',
+    'Proyek mana yang prioritasnya tinggi?',
+    'Berapa budget total proyek aktif?',
+    'Transaksi terbaru apa saja?',
+    'Produk apa yang perlu restock?',
+  ],
+  staff: [
+    'Produk apa saja yang tersedia?',
+    'Proyek apa yang sedang aktif?',
+    'Status stok inventaris',
+    'Panduan sistem ERP',
+  ],
+  user: [
+    'Tampilkan ringkasan keuangan',
+    'Produk dengan stok rendah',
+    'Proyek yang sedang berjalan',
+    'Transaksi terbaru',
+  ],
+};
+
 export const Chatbot: React.FC<ChatbotProps> = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -26,12 +58,29 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
     {
       role: 'assistant',
       content:
-        'Halo! Saya adalah Asisten ERP-Mate yang didukung oleh Google Gemini. Saya dapat membantu Anda dengan:\n\n• Wawasan dan analitik bisnis\n• Pertanyaan manajemen inventaris\n• Analisis data keuangan\n• Panduan manajemen proyek\n\nAda yang bisa saya bantu hari ini?',
+        'Halo! Saya adalah Asisten ERP-Mate yang didukung oleh Google Gemini.\n\n Ada yang bisa saya bantu hari ini?',
     },
   ]);
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('user');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const profile = await authApi.getProfile();
+        setUserRole(profile.role || 'user');
+      } catch (error) {
+        console.error('Failed to fetch user role:', error);
+        setUserRole('user');
+      }
+    };
+
+    if (isOpen) {
+      fetchUserRole();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
@@ -85,12 +134,7 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
     setSessionId(null);
   };
 
-  const quickPrompts = [
-    'Analisis status inventaris',
-    'Tampilkan ringkasan keuangan',
-    'Ringkasan progres proyek',
-    'Peringatan stok rendah',
-  ];
+  const quickPrompts = roleBasedPrompts[userRole] || roleBasedPrompts.user;
 
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
@@ -141,13 +185,44 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
                 }`}
               >
                 <div
-                  className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm ${
+                  className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm overflow-hidden ${
                     m.role === 'user'
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-none'
                       : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">{m.content}</div>
+                  {m.role === 'assistant' ? (
+                    <ReactMarkdown
+                      className="markdown-content"
+                      components={{
+                        h1: ({ node, ...props }) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
+                        h2: ({ node, ...props }) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
+                        h3: ({ node, ...props }) => <h3 className="text-sm font-bold mt-1 mb-1" {...props} />,
+                        p: ({ node, ...props }) => <p className="mb-2" {...props} />,
+                        ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-2" {...props} />,
+                        ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-2" {...props} />,
+                        li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                        strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
+                        em: ({ node, ...props }) => <em className="italic" {...props} />,
+                        code: ({ node, ...props }) => (
+                          <code className="bg-gray-200 px-2 py-1 rounded text-xs" {...props} />
+                        ),
+                        table: ({ node, ...props }) => (
+                          <table className="border-collapse border border-gray-300 text-xs" {...props} />
+                        ),
+                        th: ({ node, ...props }) => (
+                          <th className="border border-gray-300 p-1 bg-gray-100" {...props} />
+                        ),
+                        td: ({ node, ...props }) => (
+                          <td className="border border-gray-300 p-1" {...props} />
+                        ),
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  )}
                 </div>
               </div>
             ))}

@@ -5,7 +5,16 @@ import { aiModel } from '../config/gemini';
 import { ChatHistory, Product, Transaction, Project, User } from '../models';
 import { AuthRequest } from '../middleware';
 
-const getSystemContext = async () => {
+// Format IDR currency
+const formatIDR = (amount: number): string => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(amount);
+};
+
+const getSystemContext = async (userRole?: string) => {
   // Get real-time data from database for context
   const [productCount, transactionCount, projectCount, userCount] = await Promise.all([
     Product.countDocuments(),
@@ -24,42 +33,111 @@ const getSystemContext = async () => {
 
   const activeProjects = await Project.find({ status: 'active' }).limit(5);
 
+  // Get all transactions for accurate financial summary
+  const allTransactions = await Transaction.find({ status: 'completed' });
+  
+  // Calculate financial summary from all completed transactions
+  const totalIncome = allTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  const totalExpense = allTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Get categories for products
+  const productCategories = await Product.distinct('category');
+  
+  // Get high priority projects
+  const highPriorityProjects = await Project.find({ priority: 'high', status: { $ne: 'completed' } }).limit(5);
+  
+  // Get top products by price
+  const topProducts = await Product.find().sort({ price: -1 }).limit(5);
+  
+  // Get transaction categories summary
+  const incomeByCategory = await Transaction.aggregate([
+    { $match: { type: 'income', status: 'completed' } },
+    { $group: { _id: '$category', total: { $sum: '$amount' } } },
+    { $sort: { total: -1 } },
+    { $limit: 5 }
+  ]);
+  
+  const expenseByCategory = await Transaction.aggregate([
+    { $match: { type: 'expense', status: 'completed' } },
+    { $group: { _id: '$category', total: { $sum: '$amount' } } },
+    { $sort: { total: -1 } },
+    { $limit: 5 }
+  ]);
+
   return `
-You are ERP-Mate Assistant, an intelligent AI assistant for enterprise resource planning.
-You have access to the following real-time business data:
+Kamu adalah Asisten ERP-Mate, AI assistant pintar untuk perencanaan sumber daya perusahaan.
+Kamu memiliki akses ke data bisnis real-time berikut:
 
-CURRENT STATISTICS:
-- Total Products in Inventory: ${productCount}
-- Total Transactions: ${transactionCount}
-- Total Projects: ${projectCount}
-- Total Users: ${userCount}
+STATISTIK SAAT INI:
+- Total Produk di Inventaris: ${productCount}
+- Total Transaksi: ${transactionCount}
+- Total Proyek: ${projectCount}
+- Total Pengguna: ${userCount}
 
-LOW STOCK ALERTS:
+RINGKASAN KEUANGAN:
+- Total Pemasukan: ${formatIDR(totalIncome)}
+- Total Pengeluaran: ${formatIDR(totalExpense)}
+- Laba Bersih: ${formatIDR(totalIncome - totalExpense)}
+
+PEMASUKAN PER KATEGORI:
+${incomeByCategory.length > 0 
+  ? incomeByCategory.map(c => `- ${c._id}: ${formatIDR(c.total)}`).join('\n')
+  : '- Belum ada data pemasukan'}
+
+PENGELUARAN PER KATEGORI:
+${expenseByCategory.length > 0 
+  ? expenseByCategory.map(c => `- ${c._id}: ${formatIDR(c.total)}`).join('\n')
+  : '- Belum ada data pengeluaran'}
+
+PERINGATAN STOK RENDAH:
 ${lowStockProducts.length > 0 
-  ? lowStockProducts.map(p => `- ${p.name}: ${p.stock} units (min: ${p.minStock})`).join('\n')
-  : '- No low stock alerts'}
+  ? lowStockProducts.map(p => `- ${p.name}: ${p.stock} unit (min: ${p.minStock}), Harga: ${formatIDR(p.price)}`).join('\n')
+  : '- Tidak ada peringatan stok rendah'}
 
-RECENT TRANSACTIONS:
-${recentTransactions.map(t => `- ${t.type}: $${t.amount} - ${t.description}`).join('\n')}
+KATEGORI PRODUK: ${productCategories.join(', ') || 'Belum ada kategori'}
 
-ACTIVE PROJECTS:
-${activeProjects.map(p => `- ${p.title} (${p.progress}% complete)`).join('\n')}
+PRODUK TERMAHAL:
+${topProducts.length > 0 
+  ? topProducts.map(p => `- ${p.name}: ${formatIDR(p.price)} (Stok: ${p.stock})`).join('\n')
+  : '- Belum ada data produk'}
 
-CAPABILITIES:
-1. Answer questions about inventory, finance, and projects
-2. Provide business insights and recommendations
-3. Help with ERP navigation and feature explanations
-4. Analyze business performance and trends
-5. Suggest actions based on current data
+TRANSAKSI TERBARU:
+${recentTransactions.length > 0
+  ? recentTransactions.map(t => `- ${t.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}: ${formatIDR(t.amount)} - ${t.description} (${t.category})`).join('\n')
+  : '- Belum ada transaksi'}
 
-GUIDELINES:
-- Be concise but informative
-- Use the real data provided when answering questions
-- If asked about specific records, use the context data
-- For operations you can't perform, explain what the user can do in the ERP system
-- Be helpful and professional
+PROYEK AKTIF:
+${activeProjects.length > 0
+  ? activeProjects.map(p => `- ${p.title} (${p.progress}% selesai, Prioritas: ${p.priority}${p.budget ? `, Budget: ${formatIDR(p.budget)}` : ''})`).join('\n')
+  : '- Tidak ada proyek aktif'}
 
-User question:
+PROYEK PRIORITAS TINGGI:
+${highPriorityProjects.length > 0
+  ? highPriorityProjects.map(p => `- ${p.title} (Status: ${p.status}, Progress: ${p.progress}%)`).join('\n')
+  : '- Tidak ada proyek prioritas tinggi'}
+
+KEMAMPUAN:
+1. Menjawab pertanyaan tentang inventaris, produk, dan stok
+2. Memberikan ringkasan dan analisis keuangan (pemasukan, pengeluaran, laba)
+3. Menampilkan informasi proyek dan progress
+4. Menyarankan tindakan berdasarkan data saat ini
+
+PETUNJUK RESPONS:
+- Format semua nilai uang dalam Rupiah (Rp)
+- Gunakan markdown untuk format yang lebih baik (gunakan ## untuk header, - untuk list, **bold** untuk penting)
+- Berikan jawaban yang ringkas namun informatif
+- GUNAKAN DATA REAL-TIME yang disediakan di atas untuk menjawab
+- Jika data tidak tersedia, katakan dengan jelas bahwa data tersebut belum ada di sistem
+- Jangan mengarang data yang tidak ada
+
+Role Pengguna: ${userRole || 'user'}
+
+Pertanyaan pengguna:
 `;
 };
 
@@ -68,6 +146,7 @@ export const chat = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { prompt, sessionId } = req.body;
     const userId = req.user?._id;
+    const userRole = req.user?.role;
 
     if (!prompt) {
       res.status(400).json({ error: 'Prompt is required' });
@@ -77,8 +156,8 @@ export const chat = async (req: AuthRequest, res: Response): Promise<void> => {
     // Get or create chat session
     const chatSessionId = sessionId || uuidv4();
     
-    // Get system context with real data
-    const systemContext = await getSystemContext();
+    // Get system context with real data and user role
+    const systemContext = await getSystemContext(userRole);
     
     // Generate AI response
     const result = await aiModel.generateContent(`${systemContext} ${prompt}`);
@@ -158,28 +237,29 @@ export const deleteChatSession = async (req: AuthRequest, res: Response): Promis
 export const analyzeData = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { type } = req.query; // inventory, finance, projects
+    const userRole = req.user?.role;
     
     let analysisPrompt = '';
     
     switch (type) {
       case 'inventory':
         const products = await Product.find().limit(20);
-        analysisPrompt = `Analyze this inventory data and provide insights:\n${JSON.stringify(products)}`;
+        analysisPrompt = `Analisis data inventaris ini dan berikan insights:\n${JSON.stringify(products)}`;
         break;
       case 'finance':
         const transactions = await Transaction.find().sort({ date: -1 }).limit(30);
-        analysisPrompt = `Analyze these financial transactions and provide insights:\n${JSON.stringify(transactions)}`;
+        analysisPrompt = `Analisis transaksi keuangan ini dan berikan insights dengan format Rupiah (Rp):\n${JSON.stringify(transactions)}`;
         break;
       case 'projects':
         const projects = await Project.find().limit(10);
-        analysisPrompt = `Analyze these projects and provide progress insights:\n${JSON.stringify(projects)}`;
+        analysisPrompt = `Analisis proyek-proyek ini dan berikan insights progress:\n${JSON.stringify(projects)}`;
         break;
       default:
         res.status(400).json({ error: 'Invalid analysis type' });
         return;
     }
 
-    const systemContext = await getSystemContext();
+    const systemContext = await getSystemContext(userRole);
     const result = await aiModel.generateContent(`${systemContext}\n\n${analysisPrompt}`);
     const response = await result.response;
     
