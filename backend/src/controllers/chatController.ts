@@ -5,7 +5,6 @@ import { aiModel } from '../config/gemini';
 import { ChatHistory, Product, Transaction, Project, User } from '../models';
 import { AuthRequest } from '../middleware';
 
-// Format IDR currency
 const formatIDR = (amount: number): string => {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -14,8 +13,44 @@ const formatIDR = (amount: number): string => {
   }).format(amount);
 };
 
+const rolePermissions: Record<string, { allowed: string[]; denied: string[] }> = {
+  admin: {
+    allowed: ['dashboard', 'manajemen pengguna', 'inventaris', 'keuangan', 'proyek', 'semua data'],
+    denied: [],
+  },
+  manager: {
+    allowed: ['dashboard', 'inventaris', 'keuangan', 'proyek'],
+    denied: ['manajemen pengguna', 'data pengguna', 'hak akses', 'role pengguna'],
+  },
+  staff: {
+    allowed: ['dashboard', 'inventaris', 'proyek'],
+    denied: ['keuangan', 'transaksi', 'pemasukan', 'pengeluaran', 'laba', 'rugi', 'laporan keuangan', 'manajemen pengguna', 'data pengguna', 'hak akses'],
+  },
+};
+
+const getRoleAccessContext = (userRole: string) => {
+  const role = rolePermissions[userRole] ? userRole : 'staff';
+  const permissions = rolePermissions[role];
+  
+  return `
+ATURAN AKSES BERDASARKAN ROLE:
+Role pengguna saat ini: ${role.toUpperCase()}
+
+AKSES YANG DIIZINKAN untuk ${role}:
+${permissions.allowed.map(a => `- ${a}`).join('\n')}
+
+AKSES YANG DITOLAK untuk ${role}:
+${permissions.denied.length > 0 ? permissions.denied.map(d => `- ${d}`).join('\n') : '- Tidak ada pembatasan'}
+
+INSTRUKSI PENOLAKAN:
+- Jika pengguna bertanya tentang topik yang DITOLAK, WAJIB tolak dengan sopan
+- Format penolakan: "Maaf, Anda tidak memiliki akses untuk informasi **[topik]**. Sebagai **${role}**, Anda hanya dapat mengakses informasi terkait: ${permissions.allowed.join(', ')}. Silakan hubungi admin jika memerlukan akses lebih lanjut."
+- Jangan pernah memberikan informasi yang di luar akses role pengguna meskipun data tersedia
+- Tetap sopan dan profesional saat menolak
+`;
+};
+
 const getSystemContext = async (userRole?: string) => {
-  // Get real-time data from database for context
   const [productCount, transactionCount, projectCount, userCount] = await Promise.all([
     Product.countDocuments(),
     Transaction.countDocuments(),
@@ -33,10 +68,8 @@ const getSystemContext = async (userRole?: string) => {
 
   const activeProjects = await Project.find({ status: 'active' }).limit(5);
 
-  // Get all transactions for accurate financial summary
   const allTransactions = await Transaction.find({ status: 'completed' });
   
-  // Calculate financial summary from all completed transactions
   const totalIncome = allTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -45,16 +78,12 @@ const getSystemContext = async (userRole?: string) => {
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Get categories for products
   const productCategories = await Product.distinct('category');
   
-  // Get high priority projects
   const highPriorityProjects = await Project.find({ priority: 'high', status: { $ne: 'completed' } }).limit(5);
   
-  // Get top products by price
   const topProducts = await Product.find().sort({ price: -1 }).limit(5);
   
-  // Get transaction categories summary
   const incomeByCategory = await Transaction.aggregate([
     { $match: { type: 'income', status: 'completed' } },
     { $group: { _id: '$category', total: { $sum: '$amount' } } },
@@ -121,11 +150,14 @@ ${highPriorityProjects.length > 0
   ? highPriorityProjects.map(p => `- ${p.title} (Status: ${p.status}, Progress: ${p.progress}%)`).join('\n')
   : '- Tidak ada proyek prioritas tinggi'}
 
+${getRoleAccessContext(userRole || 'user')}
+
 KEMAMPUAN:
 1. Menjawab pertanyaan tentang inventaris, produk, dan stok
 2. Memberikan ringkasan dan analisis keuangan (pemasukan, pengeluaran, laba)
 3. Menampilkan informasi proyek dan progress
 4. Menyarankan tindakan berdasarkan data saat ini
+5. MENOLAK pertanyaan yang di luar akses role pengguna
 
 PETUNJUK RESPONS:
 - Format semua nilai uang dalam Rupiah (Rp)
@@ -134,6 +166,7 @@ PETUNJUK RESPONS:
 - GUNAKAN DATA REAL-TIME yang disediakan di atas untuk menjawab
 - Jika data tidak tersedia, katakan dengan jelas bahwa data tersebut belum ada di sistem
 - Jangan mengarang data yang tidak ada
+- PENTING: Cek akses role sebelum menjawab. Jika pertanyaan di luar kapasitas role, TOLAK dengan sopan
 
 Role Pengguna: ${userRole || 'user'}
 
@@ -153,18 +186,14 @@ export const chat = async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    // Get or create chat session
     const chatSessionId = sessionId || uuidv4();
     
-    // Get system context with real data and user role
     const systemContext = await getSystemContext(userRole);
     
-    // Generate AI response
     const result = await aiModel.generateContent(`${systemContext} ${prompt}`);
     const response = await result.response;
     const reply = response.text();
 
-    // Save chat history
     if (userId) {
       await ChatHistory.findOneAndUpdate(
         { userId, sessionId: chatSessionId },

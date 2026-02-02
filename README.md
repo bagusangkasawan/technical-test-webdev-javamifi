@@ -32,6 +32,8 @@ Sistem Enterprise Resource Planning (ERP) modern dan profesional yang dibangun d
 - Manajemen profil
 - Organisasi departemen
 
+---
+
 ## 🔒 Sistem Akses Berbasis Role
 
 Aplikasi ini mengimplementasikan kontrol akses berbasis role sesuai standar industri ERP:
@@ -69,6 +71,8 @@ Aplikasi ini mengimplementasikan kontrol akses berbasis role sesuai standar indu
 - Analisis data dan rekomendasi
 - Respons berdasarkan konteks
 
+---
+
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -86,6 +90,8 @@ Aplikasi ini mengimplementasikan kontrol akses berbasis role sesuai standar indu
 - **JWT** - Autentikasi
 - **bcrypt** - Password Hashing
 - **Google Generative AI** - AI Assistant
+
+---
 
 ## 🚀 Cara Menjalankan
 
@@ -131,6 +137,8 @@ pnpm dev
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000
 
+---
+
 ## 📁 Struktur Proyek
 
 ```
@@ -165,6 +173,8 @@ pnpm dev
 └── README.md
 ```
 
+---
+
 ## 🔐 API Endpoints
 
 ### Autentikasi
@@ -198,6 +208,8 @@ pnpm dev
 - `POST /api/chat` - Kirim pesan ke AI
 - `GET /api/chat/sessions` - Ambil sesi chat
 - `GET /api/chat/history/:sessionId` - Ambil riwayat chat
+
+---
 
 ## 📝 Lisensi
 

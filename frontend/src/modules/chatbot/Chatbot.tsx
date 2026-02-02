@@ -24,30 +24,24 @@ interface Message {
 const roleBasedPrompts: Record<string, string[]> = {
   admin: [
     'Tampilkan ringkasan keuangan',
-    'Produk mana yang stoknya rendah?',
     'Berapa total pemasukan dan pengeluaran?',
+    'Produk mana yang stoknya rendah?',
     'Proyek apa saja yang sedang aktif?',
-    'Produk dengan harga tertinggi',
+    'Berapa jumlah pengguna sistem?',
     'Kategori produk apa saja yang ada?',
   ],
   manager: [
-    'Tampilkan progres semua proyek',
-    'Proyek mana yang prioritasnya tinggi?',
-    'Berapa budget total proyek aktif?',
+    'Tampilkan ringkasan keuangan',
     'Transaksi terbaru apa saja?',
     'Produk apa yang perlu restock?',
+    'Proyek mana yang prioritasnya tinggi?',
+    'Berapa budget total proyek aktif?',
   ],
   staff: [
     'Produk apa saja yang tersedia?',
+    'Produk mana yang stoknya rendah?',
     'Proyek apa yang sedang aktif?',
-    'Status stok inventaris',
-    'Panduan sistem ERP',
-  ],
-  user: [
-    'Tampilkan ringkasan keuangan',
-    'Produk dengan stok rendah',
-    'Proyek yang sedang berjalan',
-    'Transaksi terbaru',
+    'Kategori produk apa saja?',
   ],
 };
 
@@ -63,17 +57,17 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
   ]);
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('user');
+  const [userRole, setUserRole] = useState<string>('staff');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
         const profile = await authApi.getProfile();
-        setUserRole(profile.role || 'user');
+        setUserRole(profile.role || 'staff');
       } catch (error) {
         console.error('Failed to fetch user role:', error);
-        setUserRole('user');
+        setUserRole('staff');
       }
     };
 
@@ -134,7 +128,7 @@ export const Chatbot: React.FC<ChatbotProps> = () => {
     setSessionId(null);
   };
 
-  const quickPrompts = roleBasedPrompts[userRole] || roleBasedPrompts.user;
+  const quickPrompts = roleBasedPrompts[userRole] || roleBasedPrompts.staff;
 
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
